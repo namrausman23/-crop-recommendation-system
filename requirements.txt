@@ -1,5 +1,4 @@
-flask
+streamlit
 pandas
 numpy
-scikit-learn
-gunicorn  # Essential for production deployment
+scikit-learngit add .
