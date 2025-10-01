@@ -3,9 +3,21 @@ import pandas as pd
 import pickle
 import numpy as np
 
+# --- CROP ID TO NAME MAPPING ---
+# This dictionary maps the model's numerical output back to the crop name.
+# NOTE: This mapping must exactly match the label encoding used during training.
+crop_dict = {
+    1: 'Rice', 2: 'Maize', 3: 'Jute', 4: 'Cotton', 5: 'Coffee', 
+    6: 'Kidney Beans', 7: 'Pigeon Peas', 8: 'Moth Beans', 9: 'Mung Bean', 
+    10: 'Blackgram', 11: 'Lentil', 12: 'Pomegranate', 13: 'Banana', 
+    14: 'Mango', 15: 'Grapes', 16: 'Watermelon', 17: 'Muskmelon', 
+    18: 'Apple', 19: 'Orange', 20: 'Papaya', 21: 'Coconut', 22: 'Chickpea'
+}
+
 # 1. Load the pre-trained model and scalers
 try:
     model = pickle.load(open('model.pkl', 'rb'))
+    # Load the scalers used during model training
     scaler = pickle.load(open('standscaler.pkl', 'rb'))
     minmax_scaler = pickle.load(open('minmaxscaler.pkl', 'rb'))
 except FileNotFoundError:
@@ -30,15 +42,23 @@ if st.button('Get Recommendation'):
     # Create the input array
     features = np.array([[N, P, K, temp, humidity, ph, rainfall]])
 
-    # Scaling the input data
-    # (Note: You must know which scaler to apply first, standard or minmax)
+    # Scaling the input data (Must be in the same order as training)
     scaled_features = scaler.transform(features)
     final_features = minmax_scaler.transform(scaled_features)
 
-    # Make prediction
-    prediction = model.predict(final_features)
+    # Make prediction (Output is a numerical ID, e.g., 11)
+    prediction_id = model.predict(final_features)[0]
+    
+    # Convert prediction ID to integer for dictionary lookup
+    prediction_id = int(prediction_id)
+
+    # Map the numerical ID back to the crop name
+    if prediction_id in crop_dict:
+        predicted_crop_name = crop_dict[prediction_id]
+    else:
+        predicted_crop_name = f"Unknown ID: {prediction_id}"
     
     # Display Result
     st.success("✅ Recommendation is ready!")
     st.balloons()
-    st.metric("Recommended Crop", prediction[0])
+    st.metric("Recommended Crop", predicted_crop_name)
