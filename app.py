@@ -5,7 +5,7 @@ import numpy as np
 
 # --- CROP ID TO NAME MAPPING ---
 # This dictionary maps the model's numerical output back to the crop name.
-# NOTE: This mapping must exactly match the label encoding used during training.
+# NOTE: This is based on typical crop recommendation datasets.
 crop_dict = {
     1: 'Rice', 2: 'Maize', 3: 'Jute', 4: 'Cotton', 5: 'Coffee', 
     6: 'Kidney Beans', 7: 'Pigeon Peas', 8: 'Moth Beans', 9: 'Mung Bean', 
@@ -17,7 +17,6 @@ crop_dict = {
 # 1. Load the pre-trained model and scalers
 try:
     model = pickle.load(open('model.pkl', 'rb'))
-    # Load the scalers used during model training
     scaler = pickle.load(open('standscaler.pkl', 'rb'))
     minmax_scaler = pickle.load(open('minmaxscaler.pkl', 'rb'))
 except FileNotFoundError:
@@ -29,9 +28,9 @@ st.title("🌱 Crop Recommendation System")
 st.markdown("Enter the soil and climate parameters below to get the best crop recommendation.")
 
 # 2. Collect Inputs
-N = st.number_input('Nitrogen (N)', min_value=0.0, max_value=140.0, value=90.0)
-P = st.number_input('Phosphorus (P)', min_value=0.0, max_value=145.0, value=42.0)
-K = st.number_input('Potassium (K)', min_value=0.0, max_value=205.0, value=43.0)
+N = st.number_input('Nitrogen (N)', min_value=0.0, max_value=140.0, value=90.0, step=1.0)
+P = st.number_input('Phosphorus (P)', min_value=0.0, max_value=145.0, value=42.0, step=1.0)
+K = st.number_input('Potassium (K)', min_value=0.0, max_value=205.0, value=43.0, step=1.0)
 temp = st.number_input('Temperature (°C)', min_value=0.0, max_value=50.0, value=25.0, step=0.1)
 humidity = st.number_input('Humidity (%)', min_value=0.0, max_value=100.0, value=75.0, step=0.1)
 ph = st.number_input('pH Value', min_value=0.0, max_value=14.0, value=6.5, step=0.1)
@@ -42,23 +41,27 @@ if st.button('Get Recommendation'):
     # Create the input array
     features = np.array([[N, P, K, temp, humidity, ph, rainfall]])
 
-    # Scaling the input data (Must be in the same order as training)
+    # Scaling the input data
     scaled_features = scaler.transform(features)
     final_features = minmax_scaler.transform(scaled_features)
 
-    # Make prediction (Output is a numerical ID, e.g., 11)
+    # Make prediction (Output is a numerical ID)
     prediction_id = model.predict(final_features)[0]
     
     # Convert prediction ID to integer for dictionary lookup
     prediction_id = int(prediction_id)
 
     # Map the numerical ID back to the crop name
-    if prediction_id in crop_dict:
-        predicted_crop_name = crop_dict[prediction_id]
-    else:
-        predicted_crop_name = f"Unknown ID: {prediction_id}"
+    predicted_crop_name = crop_dict.get(prediction_id, f"Unknown Crop ID: {prediction_id}")
     
-    # Display Result
+    # --- Display Result ---
+    
     st.success("✅ Recommendation is ready!")
     st.balloons()
+    
+    # Display the image using the native Streamlit component
+    # It looks for the file path relative to app.py
+    st.image("static/img.jpg", caption="Your Cropland Image") 
+    
+    # Display the final prediction
     st.metric("Recommended Crop", predicted_crop_name)
