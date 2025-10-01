@@ -1,53 +1,44 @@
-from flask import Flask,request,render_template
-import numpy as np
-import pandas
-import sklearn
+import streamlit as st
+import pandas as pd
 import pickle
+import numpy as np
 
-# importing model
-model = pickle.load(open('model.pkl','rb'))
-sc = pickle.load(open('standscaler.pkl','rb'))
-ms = pickle.load(open('minmaxscaler.pkl','rb'))
+# 1. Load the pre-trained model and scalers
+try:
+    model = pickle.load(open('model.pkl', 'rb'))
+    scaler = pickle.load(open('standscaler.pkl', 'rb'))
+    minmax_scaler = pickle.load(open('minmaxscaler.pkl', 'rb'))
+except FileNotFoundError:
+    st.error("Model files (pkl) not found. Please ensure they are in the root directory.")
+    st.stop()
 
-# creating flask app
-app = Flask(__name__)
 
-@app.route('/')
-def index():
-    return render_template("index.html")
+st.title("🌱 Crop Recommendation System")
+st.markdown("Enter the soil and climate parameters below to get the best crop recommendation.")
 
-@app.route("/predict",methods=['POST'])
-def predict():
-    N = request.form['Nitrogen']
-    P = request.form['Phosporus']
-    K = request.form['Potassium']
-    temp = request.form['Temperature']
-    humidity = request.form['Humidity']
-    ph = request.form['Ph']
-    rainfall = request.form['Rainfall']
+# 2. Collect Inputs
+N = st.number_input('Nitrogen (N)', min_value=0.0, max_value=140.0, value=90.0)
+P = st.number_input('Phosphorus (P)', min_value=0.0, max_value=145.0, value=42.0)
+K = st.number_input('Potassium (K)', min_value=0.0, max_value=205.0, value=43.0)
+temp = st.number_input('Temperature (°C)', min_value=0.0, max_value=50.0, value=25.0, step=0.1)
+humidity = st.number_input('Humidity (%)', min_value=0.0, max_value=100.0, value=75.0, step=0.1)
+ph = st.number_input('pH Value', min_value=0.0, max_value=14.0, value=6.5, step=0.1)
+rainfall = st.number_input('Rainfall (mm)', min_value=0.0, max_value=300.0, value=150.0, step=0.1)
 
-    feature_list = [N, P, K, temp, humidity, ph, rainfall]
-    single_pred = np.array(feature_list).reshape(1, -1)
+# 3. Prediction Logic
+if st.button('Get Recommendation'):
+    # Create the input array
+    features = np.array([[N, P, K, temp, humidity, ph, rainfall]])
 
-    scaled_features = ms.transform(single_pred)
-    final_features = sc.transform(scaled_features)
+    # Scaling the input data
+    # (Note: You must know which scaler to apply first, standard or minmax)
+    scaled_features = scaler.transform(features)
+    final_features = minmax_scaler.transform(scaled_features)
+
+    # Make prediction
     prediction = model.predict(final_features)
-
-    crop_dict = {1: "Rice", 2: "Maize", 3: "Jute", 4: "Cotton", 5: "Coconut", 6: "Papaya", 7: "Orange",
-                 8: "Apple", 9: "Muskmelon", 10: "Watermelon", 11: "Grapes", 12: "Mango", 13: "Banana",
-                 14: "Pomegranate", 15: "Lentil", 16: "Blackgram", 17: "Mungbean", 18: "Mothbeans",
-                 19: "Pigeonpeas", 20: "Kidneybeans", 21: "Chickpea", 22: "Coffee"}
-
-    if prediction[0] in crop_dict:
-        crop = crop_dict[prediction[0]]
-        result = "{} is the best crop to be cultivated right there".format(crop)
-    else:
-        result = "Sorry, we could not determine the best crop to be cultivated with the provided data."
-    return render_template('index.html',result = result)
-
-
-
-
-# python main
-if __name__ == "__main__":
-    app.run(debug=True)
+    
+    # Display Result
+    st.success("✅ Recommendation is ready!")
+    st.balloons()
+    st.metric("Recommended Crop", prediction[0])
